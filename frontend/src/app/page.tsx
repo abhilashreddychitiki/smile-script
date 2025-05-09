@@ -3,36 +3,61 @@
 import { useEffect, useState, FormEvent } from "react";
 import { Summary } from "./types";
 
-// Get API URL from environment variable or use default
+// API configuration
+// Removes trailing slash if present to ensure consistent URL formatting
 const API_URL = (
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 ).replace(/\/$/, "");
 
 export default function Home() {
+  // Data states
   const [summaries, setSummaries] = useState<Summary[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<string>("");
+
+  // UI states
+  const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
   const [rerunningIds, setRerunningIds] = useState<number[]>([]);
 
+  // Error states
+  const [error, setError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  /**
+   * Fetches all summaries from the API
+   *
+   * This function retrieves the list of transcript summaries
+   * from the backend API and updates the state accordingly.
+   */
   const fetchSummaries = async () => {
     try {
+      // Show loading indicator
       setLoading(true);
+
+      // Fetch summaries from API
       const response = await fetch(`${API_URL}/summaries`);
+
+      // Handle HTTP errors
       if (!response.ok) {
-        throw new Error(`Error fetching summaries: ${response.status}`);
+        throw new Error(
+          `Error fetching summaries: ${response.status} ${response.statusText}`
+        );
       }
+
+      // Parse and store the data
       const data = await response.json();
       setSummaries(data);
+
+      // Clear any previous errors
       setError(null);
     } catch (err) {
+      // Log and display error
       console.error("Error fetching summaries:", err);
       setError(
         err instanceof Error ? err.message : "An unknown error occurred"
       );
     } finally {
+      // Hide loading indicator
       setLoading(false);
     }
   };
@@ -41,18 +66,30 @@ export default function Home() {
     fetchSummaries();
   }, []);
 
+  /**
+   * Handles form submission to create a new summary
+   *
+   * This function validates the transcript input, submits it to the API,
+   * and refreshes the summaries list upon success.
+   *
+   * @param e - The form submission event
+   */
   const handleSubmit = async (e: FormEvent) => {
+    // Prevent default form submission behavior
     e.preventDefault();
 
+    // Validate input
     if (!transcript.trim()) {
       setSubmitError("Please enter a transcript");
       return;
     }
 
     try {
+      // Update UI state for submission
       setSubmitting(true);
       setSubmitError(null);
 
+      // Send transcript to API for summarization
       const response = await fetch(`${API_URL}/summarize`, {
         method: "POST",
         headers: {
@@ -61,65 +98,90 @@ export default function Home() {
         body: JSON.stringify({ transcript }),
       });
 
+      // Handle API errors
       if (!response.ok) {
-        throw new Error(`Error submitting transcript: ${response.status}`);
+        throw new Error(
+          `Error submitting transcript: ${response.status} ${response.statusText}`
+        );
       }
 
-      // Clear the form
+      // Reset form on success
       setTranscript("");
 
-      // Refresh the summaries list
+      // Refresh the summaries list to show the new entry
       await fetchSummaries();
     } catch (err) {
+      // Handle and display errors
       console.error("Error submitting transcript:", err);
       setSubmitError(
         err instanceof Error ? err.message : "An unknown error occurred"
       );
     } finally {
+      // Reset submission state
       setSubmitting(false);
     }
   };
 
+  /**
+   * Handles re-running the summarization for a specific transcript
+   *
+   * This function sends a request to regenerate the summary for an existing
+   * transcript and updates the UI accordingly.
+   *
+   * @param id - The ID of the summary to regenerate
+   */
   const handleRerun = async (id: number) => {
     try {
-      // Add the ID to the rerunning list to show loading state
+      // Update UI to show loading state for this specific summary
       setRerunningIds((prev) => [...prev, id]);
 
+      // Send request to re-generate the summary
       const response = await fetch(`${API_URL}/re-summarize/${id}`, {
         method: "PUT",
       });
 
+      // Handle API errors
       if (!response.ok) {
-        throw new Error(`Error re-running summary: ${response.status}`);
+        throw new Error(
+          `Error re-running summary: ${response.status} ${response.statusText}`
+        );
       }
 
-      // Refresh the summaries list
+      // Refresh the summaries list to show the updated summary
       await fetchSummaries();
     } catch (err) {
+      // Log the error (could add UI feedback for individual cards in the future)
       console.error(`Error re-running summary for ID ${id}:`, err);
-      // We could add error handling for individual cards here
+
+      // Note: We could add per-card error handling here with a new state variable
+      // such as const [rerunErrors, setRerunErrors] = useState<Record<number, string>>({});
     } finally {
-      // Remove the ID from the rerunning list
+      // Remove the loading state for this summary
       setRerunningIds((prev) =>
         prev.filter((rerunningId) => rerunningId !== id)
       );
     }
   };
 
-  // Function to format date
-  const formatDate = (dateString: string) => {
+  /**
+   * Formats a date string into a human-readable format
+   *
+   * @param dateString - ISO date string from the API
+   * @returns Formatted date string in local timezone
+   */
+  const formatDate = (dateString: string): string => {
     if (!dateString) return "N/A";
 
     try {
-      // Parse the date string and ensure it's treated as UTC
+      // Parse the date string
       const date = new Date(dateString);
 
-      // Check if the date is valid
+      // Validate the date
       if (isNaN(date.getTime())) {
         return "Invalid date";
       }
 
-      // Format the date in the local timezone
+      // Format the date in a user-friendly format with the local timezone
       return date.toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
@@ -133,10 +195,19 @@ export default function Home() {
     }
   };
 
-  // Function to trim text to a specific length
-  const trimText = (text: string, maxLength: number) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + "...";
+  /**
+   * Truncates text to a specified length with ellipsis
+   *
+   * @param text - The text to trim
+   * @param maxLength - Maximum length before truncation
+   * @returns Trimmed text with ellipsis if needed
+   */
+  const trimText = (text: string, maxLength: number): string => {
+    // Return original text if it's already short enough
+    if (!text || text.length <= maxLength) return text;
+
+    // Truncate and add ellipsis
+    return `${text.substring(0, maxLength)}...`;
   };
 
   return (
