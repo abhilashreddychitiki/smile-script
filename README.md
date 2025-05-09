@@ -26,7 +26,22 @@ SmileScript is an AI-powered call summarizer for dental clinics.
    docker-compose down
    ```
 
-### Option 2: Local Development
+### Option 2: Nixpacks Deployment
+
+SmileScript can be deployed using Nixpacks, which is used by platforms like Render and Railway.
+
+1. Make sure you have the following files in your project root:
+
+   - `Procfile`: Specifies the start command
+   - `nixpacks.toml`: Configures the build process
+   - `runtime.txt`: Specifies the Python version
+   - `requirements.txt`: Lists the Python dependencies
+
+2. Deploy to a platform that supports Nixpacks:
+   - Set the environment variable `PORT` to the port your application should listen on
+   - (Optional) Set `USE_OPENAI_API=true` and provide your `OPENAI_API_KEY` to use OpenAI for summarization
+
+### Option 3: Local Development
 
 #### Backend
 
@@ -73,4 +88,5 @@ SmileScript is an AI-powered call summarizer for dental clinics.
 - Re-run summaries with updated AI models
 - Clean, responsive UI built with Tailwind CSS
 - Containerized deployment with Docker and Docker Compose
+- Nixpacks support for platforms like Render and Railway
 - Environment-based configuration for easy deployment
