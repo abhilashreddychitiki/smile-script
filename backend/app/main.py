@@ -7,10 +7,9 @@ from app.database import get_db, engine
 from app.models import Base, CommLog
 from app.schemas import TranscriptRequest
 from app.services import generate_summary
-from app.config import USE_OPENAI_API
 
-# Drop and recreate tables to ensure schema changes are applied
-Base.metadata.drop_all(bind=engine)
+# Create tables if they don't exist
+# Note: In production, use proper database migrations instead of this approach
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -19,19 +18,17 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# Print startup message about OpenAI API status
-if USE_OPENAI_API:
-    print("🤖 OpenAI API is ENABLED for summarization")
-else:
-    print("🔄 Using MOCK summarization (OpenAI API is disabled)")
+# Startup message is now handled by the config module
 
-# Add CORS middleware to allow frontend to communicate with the API
+# Configure CORS middleware for cross-origin requests
+# Security note: In production, replace "*" with specific origins (e.g., ["https://yourdomain.com"])
+# and limit methods and headers to only what's needed
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
@@ -48,30 +45,38 @@ async def summarize_transcript(request: TranscriptRequest, db: Session = Depends
     """
     Summarize a dental call transcript and store it in the database.
 
-    This endpoint accepts a transcript, generates a summary, and stores both in the database.
+    This endpoint processes the incoming transcript, generates an AI or mock summary,
+    and persists both the original text and its summary for future reference.
 
     Args:
         request: The transcript request object containing the text to summarize
         db: Database session dependency
 
     Returns:
-        A JSON object containing the stored record details
+        A JSON object containing the complete stored record with ID and timestamps
     """
-    # Generate summary using the service (OpenAI or mock)
-    summary = generate_summary(request.transcript)
+    # Validate input (additional validation beyond Pydantic's type checking)
+    if not request.transcript.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Transcript cannot be empty or contain only whitespace"
+        )
 
-    # Create a new CommLog instance
+    # Generate summary using the configured service (OpenAI API or mock)
+    generated_summary = generate_summary(request.transcript)
+
+    # Create a new communication log record
     comm_log = CommLog(
         transcript=request.transcript,
-        summary=summary
+        summary=generated_summary
     )
 
-    # Add and commit to the database
+    # Persist the record to the database
     db.add(comm_log)
     db.commit()
     db.refresh(comm_log)
 
-    # Return the stored record details
+    # Return the complete record with all fields
     return {
         "id": comm_log.id,
         "transcript": comm_log.transcript,
@@ -84,20 +89,21 @@ async def summarize_transcript(request: TranscriptRequest, db: Session = Depends
 @app.get("/summaries", response_model=list[dict])
 async def get_summaries(db: Session = Depends(get_db)):
     """
-    Get all stored transcript summaries.
+    Retrieve all stored transcript summaries.
 
-    This endpoint retrieves all CommLog entries from the database.
+    This endpoint fetches all communication log entries from the database,
+    ordered by creation date (newest first).
 
     Args:
         db: Database session dependency
 
     Returns:
-        A list of CommLog records with id, transcript, summary, and created_at
+        A list of communication log records with all fields included
     """
-    # Query all CommLog entries
-    comm_logs = db.query(CommLog).all()
+    # Query all communication logs, ordered by creation date (newest first)
+    comm_logs = db.query(CommLog).order_by(CommLog.created_at.desc()).all()
 
-    # Return the list of records
+    # Transform database objects into response dictionaries
     return [
         {
             "id": log.id,
@@ -110,8 +116,8 @@ async def get_summaries(db: Session = Depends(get_db)):
     ]
 
 
-@app.put("/re-summarize/{id}", response_model=dict)
-async def re_summarize(id: int, db: Session = Depends(get_db)):
+@app.put("/re-summarize/{comm_log_id}", response_model=dict)
+async def re_summarize(comm_log_id: int, db: Session = Depends(get_db)):
     """
     Re-generate the summary for a specific transcript.
 
@@ -119,32 +125,37 @@ async def re_summarize(id: int, db: Session = Depends(get_db)):
     and updates the record in the database.
 
     Args:
-        id: The ID of the CommLog record to update
+        comm_log_id: The ID of the CommLog record to update
         db: Database session dependency
 
     Returns:
-        The updated CommLog record
+        The updated CommLog record with new summary and timestamps
     """
-    # Look up the record by ID
-    comm_log = db.query(CommLog).filter(CommLog.id == id).first()
+    # Look up the communication log record by ID
+    comm_log = db.query(CommLog).filter(CommLog.id == comm_log_id).first()
 
-    # If record not found, raise 404 error
+    # If record not found, raise 404 error with descriptive message
     if not comm_log:
-        raise HTTPException(status_code=404, detail=f"CommLog with ID {id} not found")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Communication log with ID {comm_log_id} not found"
+        )
 
-    # Generate a new summary using the service (OpenAI or mock)
-    new_summary = generate_summary(comm_log.transcript)
+    # Generate a new summary using the configured service (OpenAI API or mock)
+    fresh_summary = generate_summary(comm_log.transcript)
 
-    # Update the summary and updated_at fields
-    comm_log.summary = new_summary
-    # Explicitly set updated_at to current UTC time to ensure it's newer than created_at
+    # Update the record with new summary
+    comm_log.summary = fresh_summary
+
+    # Set updated_at timestamp to current UTC time
+    # This ensures the updated_at field is always newer than created_at
     comm_log.updated_at = datetime.now(timezone.utc)
 
-    # Commit the changes to the database
+    # Persist changes to the database
     db.commit()
     db.refresh(comm_log)
 
-    # Return the updated record
+    # Return the complete updated record
     return {
         "id": comm_log.id,
         "transcript": comm_log.transcript,
