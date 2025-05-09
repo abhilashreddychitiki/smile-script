@@ -6,6 +6,8 @@ from datetime import datetime
 from app.database import get_db, engine
 from app.models import Base, CommLog
 from app.schemas import TranscriptRequest
+from app.services import generate_summary
+from app.config import USE_OPENAI_API
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -15,6 +17,12 @@ app = FastAPI(
     description="API for SmileScript, an AI-powered call summarizer for dental clinics",
     version="0.1.0",
 )
+
+# Print startup message about OpenAI API status
+if USE_OPENAI_API:
+    print("🤖 OpenAI API is ENABLED for summarization")
+else:
+    print("🔄 Using MOCK summarization (OpenAI API is disabled)")
 
 # Add CORS middleware to allow frontend to communicate with the API
 app.add_middleware(
@@ -48,14 +56,13 @@ async def summarize_transcript(request: TranscriptRequest, db: Session = Depends
     Returns:
         A JSON object containing the stored record details
     """
-    # For now, just create a mocked summary with the first 50 characters
-    first_50_chars = request.transcript[:50] + "..." if len(request.transcript) > 50 else request.transcript
-    mocked_summary = f"Summary of: {first_50_chars}"
+    # Generate summary using the service (OpenAI or mock)
+    summary = generate_summary(request.transcript)
 
     # Create a new CommLog instance
     comm_log = CommLog(
         transcript=request.transcript,
-        summary=mocked_summary
+        summary=summary
     )
 
     # Add and commit to the database
@@ -124,9 +131,8 @@ async def re_summarize(id: int, db: Session = Depends(get_db)):
     if not comm_log:
         raise HTTPException(status_code=404, detail=f"CommLog with ID {id} not found")
 
-    # Generate a new mocked summary with the first 50 characters
-    first_50_chars = comm_log.transcript[:50] + "..." if len(comm_log.transcript) > 50 else comm_log.transcript
-    new_summary = f"Updated summary of: {first_50_chars}"
+    # Generate a new summary using the service (OpenAI or mock)
+    new_summary = generate_summary(comm_log.transcript)
 
     # Update the summary and updated_at fields
     comm_log.summary = new_summary
