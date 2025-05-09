@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.database import get_db, engine
 from app.models import Base, CommLog
@@ -9,7 +9,8 @@ from app.schemas import TranscriptRequest
 from app.services import generate_summary
 from app.config import USE_OPENAI_API
 
-# Create tables
+# Drop and recreate tables to ensure schema changes are applied
+Base.metadata.drop_all(bind=engine)
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -136,7 +137,8 @@ async def re_summarize(id: int, db: Session = Depends(get_db)):
 
     # Update the summary and updated_at fields
     comm_log.summary = new_summary
-    comm_log.updated_at = datetime.now()
+    # Explicitly set updated_at to current UTC time to ensure it's newer than created_at
+    comm_log.updated_at = datetime.now(timezone.utc)
 
     # Commit the changes to the database
     db.commit()

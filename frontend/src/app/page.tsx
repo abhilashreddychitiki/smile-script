@@ -103,14 +103,29 @@ export default function Home() {
 
   // Function to format date
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    if (!dateString) return "N/A";
+
+    try {
+      // Parse the date string and ensure it's treated as UTC
+      const date = new Date(dateString);
+
+      // Check if the date is valid
+      if (isNaN(date.getTime())) {
+        return "Invalid date";
+      }
+
+      // Format the date in the local timezone
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      return "Error formatting date";
+    }
   };
 
   // Function to trim text to a specific length
@@ -253,7 +268,8 @@ export default function Home() {
                         Created: {formatDate(summary.created_at)}
                       </div>
                       {summary.updated_at &&
-                        summary.updated_at !== summary.created_at && (
+                        new Date(summary.updated_at).getTime() >
+                          new Date(summary.created_at).getTime() && (
                           <div className="text-xs text-gray-500">
                             Updated: {formatDate(summary.updated_at)}
                           </div>

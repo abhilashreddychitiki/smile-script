@@ -7,7 +7,7 @@ from app.database import Base
 class CommLog(Base):
     """
     SQLAlchemy model for storing communication logs.
-    
+
     This model stores the original transcript and its summary,
     along with creation and update timestamps.
     """
@@ -16,5 +16,5 @@ class CommLog(Base):
     id = Column(Integer, primary_key=True, index=True)
     transcript = Column(Text, nullable=False)
     summary = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), nullable=False)
