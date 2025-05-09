@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app.database import get_db, engine
 from app.models import Base, CommLog
@@ -67,7 +68,8 @@ async def summarize_transcript(request: TranscriptRequest, db: Session = Depends
         "id": comm_log.id,
         "transcript": comm_log.transcript,
         "summary": comm_log.summary,
-        "created_at": comm_log.created_at
+        "created_at": comm_log.created_at,
+        "updated_at": comm_log.updated_at
     }
 
 
@@ -93,7 +95,52 @@ async def get_summaries(db: Session = Depends(get_db)):
             "id": log.id,
             "transcript": log.transcript,
             "summary": log.summary,
-            "created_at": log.created_at
+            "created_at": log.created_at,
+            "updated_at": log.updated_at
         }
         for log in comm_logs
     ]
+
+
+@app.put("/re-summarize/{id}", response_model=dict)
+async def re_summarize(id: int, db: Session = Depends(get_db)):
+    """
+    Re-generate the summary for a specific transcript.
+
+    This endpoint looks up a CommLog record by ID, generates a new summary,
+    and updates the record in the database.
+
+    Args:
+        id: The ID of the CommLog record to update
+        db: Database session dependency
+
+    Returns:
+        The updated CommLog record
+    """
+    # Look up the record by ID
+    comm_log = db.query(CommLog).filter(CommLog.id == id).first()
+
+    # If record not found, raise 404 error
+    if not comm_log:
+        raise HTTPException(status_code=404, detail=f"CommLog with ID {id} not found")
+
+    # Generate a new mocked summary with the first 50 characters
+    first_50_chars = comm_log.transcript[:50] + "..." if len(comm_log.transcript) > 50 else comm_log.transcript
+    new_summary = f"Updated summary of: {first_50_chars}"
+
+    # Update the summary and updated_at fields
+    comm_log.summary = new_summary
+    comm_log.updated_at = datetime.now()
+
+    # Commit the changes to the database
+    db.commit()
+    db.refresh(comm_log)
+
+    # Return the updated record
+    return {
+        "id": comm_log.id,
+        "transcript": comm_log.transcript,
+        "summary": comm_log.summary,
+        "created_at": comm_log.created_at,
+        "updated_at": comm_log.updated_at
+    }

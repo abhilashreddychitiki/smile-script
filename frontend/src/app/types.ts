@@ -3,4 +3,5 @@ export interface Summary {
   transcript: string;
   summary: string;
   created_at: string;
+  updated_at: string;
 }
