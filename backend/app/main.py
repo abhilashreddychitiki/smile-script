@@ -69,3 +69,31 @@ async def summarize_transcript(request: TranscriptRequest, db: Session = Depends
         "summary": comm_log.summary,
         "created_at": comm_log.created_at
     }
+
+
+@app.get("/summaries", response_model=list[dict])
+async def get_summaries(db: Session = Depends(get_db)):
+    """
+    Get all stored transcript summaries.
+
+    This endpoint retrieves all CommLog entries from the database.
+
+    Args:
+        db: Database session dependency
+
+    Returns:
+        A list of CommLog records with id, transcript, summary, and created_at
+    """
+    # Query all CommLog entries
+    comm_logs = db.query(CommLog).all()
+
+    # Return the list of records
+    return [
+        {
+            "id": log.id,
+            "transcript": log.transcript,
+            "summary": log.summary,
+            "created_at": log.created_at
+        }
+        for log in comm_logs
+    ]
