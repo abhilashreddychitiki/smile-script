@@ -22,7 +22,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./smile_script.db")
 # OpenAI API configuration
 USE_OPENAI_API = os.getenv("USE_OPENAI_API", "false").lower() == "true"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 # Validate OpenAI configuration
 if USE_OPENAI_API and not OPENAI_API_KEY:
