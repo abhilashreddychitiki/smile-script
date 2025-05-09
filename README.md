@@ -6,7 +6,7 @@ SmileScript is an AI-powered call summarizer for dental clinics. This full-stack
 
 - **Frontend**: [SmileScript Frontend](https://smile-script.vercel.app/)
 - **Backend API**: [SmileScript Backend API](https://web-production-70e58.up.railway.app/)
-- **API Documentation**: [Swagger Documentation](https://web-production-70e58.up.railway.app/docs)
+- **API Documentation**: [Swagger UI](https://web-production-70e58.up.railway.app/docs)
 
 ![SmileScript Dashboard](image.png)
 
