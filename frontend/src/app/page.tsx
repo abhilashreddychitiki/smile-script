@@ -4,7 +4,9 @@ import { useEffect, useState, FormEvent } from "react";
 import { Summary } from "./types";
 
 // Get API URL from environment variable or use default
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+).replace(/\/$/, "");
 
 export default function Home() {
   const [summaries, setSummaries] = useState<Summary[]>([]);
