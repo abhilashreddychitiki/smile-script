@@ -9,7 +9,26 @@ SmileScript is an AI-powered call summarizer for dental clinics.
 
 ## Getting Started
 
-### Backend
+### Option 1: Docker Deployment (Recommended)
+
+1. Navigate to the project root directory
+2. (Optional) Configure OpenAI API:
+   - Copy `backend/.env.example` to `backend/.env`
+   - Set `USE_OPENAI_API=true` to use OpenAI for summarization
+   - Add your OpenAI API key to `OPENAI_API_KEY`
+3. Build and start the containers:
+   ```
+   docker-compose up -d
+   ```
+4. Open [http://localhost:3000](http://localhost:3000) in your browser
+5. To stop the containers:
+   ```
+   docker-compose down
+   ```
+
+### Option 2: Local Development
+
+#### Backend
 
 1. Navigate to the project root directory
 2. Create and activate a virtual environment:
@@ -30,7 +49,7 @@ SmileScript is an AI-powered call summarizer for dental clinics.
    uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
-### Frontend
+#### Frontend
 
 1. Navigate to the frontend directory:
    ```
@@ -53,3 +72,5 @@ SmileScript is an AI-powered call summarizer for dental clinics.
 - Store and retrieve call summaries
 - Re-run summaries with updated AI models
 - Clean, responsive UI built with Tailwind CSS
+- Containerized deployment with Docker and Docker Compose
+- Environment-based configuration for easy deployment

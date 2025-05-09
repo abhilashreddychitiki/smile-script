@@ -3,6 +3,9 @@
 import { useEffect, useState, FormEvent } from "react";
 import { Summary } from "./types";
 
+// Get API URL from environment variable or use default
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 export default function Home() {
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -15,7 +18,7 @@ export default function Home() {
   const fetchSummaries = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:8000/summaries");
+      const response = await fetch(`${API_URL}/summaries`);
       if (!response.ok) {
         throw new Error(`Error fetching summaries: ${response.status}`);
       }
@@ -48,7 +51,7 @@ export default function Home() {
       setSubmitting(true);
       setSubmitError(null);
 
-      const response = await fetch("http://localhost:8000/summarize", {
+      const response = await fetch(`${API_URL}/summarize`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -80,7 +83,7 @@ export default function Home() {
       // Add the ID to the rerunning list to show loading state
       setRerunningIds((prev) => [...prev, id]);
 
-      const response = await fetch(`http://localhost:8000/re-summarize/${id}`, {
+      const response = await fetch(`${API_URL}/re-summarize/${id}`, {
         method: "PUT",
       });
 
@@ -229,8 +232,7 @@ export default function Home() {
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
               <p>{error}</p>
               <p className="text-sm mt-1">
-                Make sure your backend server is running at
-                http://localhost:8000
+                Make sure your backend server is running at {API_URL}
               </p>
             </div>
           ) : summaries.length === 0 ? (
